@@ -66,3 +66,16 @@ export const StreamMetricsSchema = z.object({
   costUsd: z.number().nonnegative().nullable(),
 });
 export type StreamMetrics = z.infer<typeof StreamMetricsSchema>;
+
+/** Max models per compare request (one chat call each, run in parallel). */
+export const PLAYGROUND_COMPARE_MAX_MODELS = 8;
+
+/** Body de POST /api/playground/compare. */
+export const PlaygroundCompareRequestSchema = z.object({
+  prompt: z.string().trim().min(1),
+  system: z.string().optional(),
+  models: z.array(z.string().trim().min(1)).min(1).max(PLAYGROUND_COMPARE_MAX_MODELS),
+  temperature: z.number().optional(),
+  max_tokens: z.number().int().positive().optional(),
+});
+export type PlaygroundCompareRequest = z.infer<typeof PlaygroundCompareRequestSchema>;

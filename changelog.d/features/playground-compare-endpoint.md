@@ -1,0 +1,1 @@
+- **feat(playground):** `POST /api/playground/compare` sends one prompt to up to 8 models/combos in parallel and returns each output with latency, token usage and the model that actually answered

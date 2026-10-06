@@ -426,6 +426,95 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/playground/compare:
+    post:
+      tags:
+        - Playground
+      summary: Compare one prompt across several models
+      description: |
+        Sends the same prompt to up to 8 models or combos in parallel through
+        `/v1/chat/completions` (non-streaming) and returns each output with its latency,
+        token usage and the model that actually answered. A combo can fall back to a
+        different model, so `resolvedModel` may differ from `model`. One model failing
+        does not fail the request: its entry has `ok: false` and an `error`.
+        The caller's credentials are forwarded to every chat call. Quota is consumed
+        from the caller's account, once per model.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+                - models
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                system:
+                  type: string
+                models:
+                  type: array
+                  minItems: 1
+                  maxItems: 8
+                  items:
+                    type: string
+                  description: Model ids or combo names (duplicates allowed, each runs once)
+                temperature:
+                  type: number
+                max_tokens:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: One result per requested model, in request order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - model
+                        - ok
+                        - latencyMs
+                      properties:
+                        model:
+                          type: string
+                        ok:
+                          type: boolean
+                        output:
+                          type: string
+                          description: Present when ok is true
+                        resolvedModel:
+                          type: string
+                          nullable: true
+                          description: Model that actually answered (present when ok is true)
+                        usage:
+                          type: object
+                          nullable: true
+                          properties:
+                            prompt_tokens:
+                              type: integer
+                            completion_tokens:
+                              type: integer
+                            total_tokens:
+                              type: integer
+                        error:
+                          type: string
+                          description: Present when ok is false
+                        latencyMs:
+                          type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/playground/presets:
     get:
       tags:
