@@ -1,0 +1,1 @@
+- **feat(playground):** Compare tab columns show the model that actually answered when a combo falls back to a different model

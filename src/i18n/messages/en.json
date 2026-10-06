@@ -11206,6 +11206,7 @@
     "maxColumnsReached": "Maximum {max} columns",
     "modelPlaceholderCompare": "Model (Cmd+K)…",
     "noModel": "No model",
+    "answeredBy": "answered by {model}",
     "statusLabel": "Status: {status}",
     "status": {
       "idle": "idle",

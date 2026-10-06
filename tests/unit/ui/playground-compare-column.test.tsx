@@ -34,6 +34,7 @@ function makeColumn(overrides: Partial<{
   metrics: typeof BASE_METRICS;
   response: string;
   errorMessage: string;
+  resolvedModel: string;
 }> = {}) {
   return {
     id: "col-1",
@@ -86,6 +87,20 @@ describe("CompareColumn", () => {
   it("renders model name in header", () => {
     const el = renderColumn(makeColumn({ model: "anthropic/claude-3-opus" }));
     expect(el.textContent).toContain("anthropic/claude-3-opus");
+  });
+
+  it("shows the answering model when it differs from the requested model", () => {
+    const el = renderColumn(
+      makeColumn({ model: "smart", status: "done", response: "Hi", resolvedModel: "gemini-2.5-flash" }),
+    );
+    expect(el.textContent).toContain("answered by gemini-2.5-flash");
+  });
+
+  it("hides the answering model when it equals the requested model", () => {
+    const el = renderColumn(
+      makeColumn({ model: "smart", status: "done", response: "Hi", resolvedModel: "smart" }),
+    );
+    expect(el.textContent).not.toContain("answered by");
   });
 
   it("shows idle state with ready message", () => {

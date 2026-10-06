@@ -17,6 +17,8 @@ export interface CompareColumnData {
   metrics: StreamMetrics;
   response: string;
   errorMessage?: string;
+  /** Model that actually answered (a combo can fall back to another model). */
+  resolvedModel?: string;
 }
 
 interface CompareColumnProps {
@@ -32,7 +34,7 @@ interface CompareColumnProps {
 export default function CompareColumn({ column, onCancel, onRemove }: CompareColumnProps) {
   const t = useTranslations("playground");
   const { copied, copy } = useCopyToClipboard();
-  const { id, model, status, metrics, response, errorMessage } = column;
+  const { id, model, status, metrics, response, errorMessage, resolvedModel } = column;
 
   return (
     <div className="flex flex-col h-full border-r border-border last:border-r-0 min-w-0 min-h-0 overflow-hidden">
@@ -88,6 +90,12 @@ export default function CompareColumn({ column, onCancel, onRemove }: CompareCol
           </button>
         </div>
       </div>
+
+      {resolvedModel && resolvedModel !== model && (
+        <div className="px-3 py-1 border-b border-border text-[11px] text-text-muted truncate shrink-0">
+          {t("answeredBy", { model: resolvedModel })}
+        </div>
+      )}
 
       {/* Metrics bar */}
       {(status === "streaming" || status === "done") && (

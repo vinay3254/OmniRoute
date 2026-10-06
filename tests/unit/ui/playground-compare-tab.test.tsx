@@ -50,10 +50,10 @@ const BASE_CONFIG = {
   params: { ...DEFAULT_PARAMS },
 };
 
-function buildSseResponse(content: string) {
+function buildSseResponse(content: string, model?: string) {
   const encoder = new TextEncoder();
   const chunks = [
-    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`,
+    `data: ${JSON.stringify({ ...(model ? { model } : {}), choices: [{ delta: { content } }] })}\n\n`,
     "data: [DONE]\n\n",
   ];
   let idx = 0;
@@ -213,6 +213,38 @@ describe("CompareTab", () => {
 
     // fetch should have been called twice (once per column)
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the model that actually answered when a combo resolves to another model", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(buildSseResponse("Hello", "gemini-2.5-flash"))) as typeof fetch,
+    );
+
+    const el = renderCompareTab();
+    const promptTextarea = el.querySelector("[aria-label='User prompt']") as HTMLTextAreaElement;
+    act(() => setInputValue(promptTextarea, "Compare this"));
+    const runBtn = el.querySelector("[aria-label='Run all columns']") as HTMLButtonElement;
+    await act(async () => { runBtn.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    expect(el.textContent).toContain("answered by gemini-2.5-flash");
+  });
+
+  it("does not repeat the model name when the answering model is the requested one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(buildSseResponse("Hello", BASE_CONFIG.model))) as typeof fetch,
+    );
+
+    const el = renderCompareTab();
+    const promptTextarea = el.querySelector("[aria-label='User prompt']") as HTMLTextAreaElement;
+    act(() => setInputValue(promptTextarea, "Compare this"));
+    const runBtn = el.querySelector("[aria-label='Run all columns']") as HTMLButtonElement;
+    await act(async () => { runBtn.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    expect(el.textContent).not.toContain("answered by");
   });
 
   it("shows Cancel all when streams are running", async () => {

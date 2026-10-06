@@ -22,6 +22,7 @@ interface ColumnState {
   metrics: StreamMetrics;
   response: string;
   errorMessage?: string;
+  resolvedModel?: string;
 }
 
 const INITIAL_METRICS: StreamMetrics = {
@@ -215,7 +216,12 @@ export default function CompareTab({ configState }: CompareTabProps) {
     const controller = new AbortController();
     controllersRef.current.set(col.id, controller);
 
-    updateColumn(col.id, { status: "streaming", response: "", metrics: INITIAL_METRICS });
+    updateColumn(col.id, {
+      status: "streaming",
+      response: "",
+      metrics: INITIAL_METRICS,
+      resolvedModel: undefined,
+    });
     tracker.start();
 
     const body: Record<string, unknown> = {
@@ -240,6 +246,7 @@ export default function CompareTab({ configState }: CompareTabProps) {
 
     let accumulated = "";
     let firstChunk = true;
+    let resolvedModel: string | undefined;
 
     try {
       const res = await fetch(`${configState.baseUrl}/v1/chat/completions`, {
@@ -279,6 +286,11 @@ export default function CompareTab({ configState }: CompareTabProps) {
             parsed = JSON.parse(data) as Record<string, unknown>;
           } catch {
             continue;
+          }
+
+          if (!resolvedModel && typeof parsed["model"] === "string" && parsed["model"] !== "") {
+            resolvedModel = parsed["model"];
+            updateColumn(col.id, { resolvedModel });
           }
 
           const choices = (parsed["choices"] as Array<Record<string, unknown>> | undefined) ?? [];
@@ -348,6 +360,7 @@ export default function CompareTab({ configState }: CompareTabProps) {
     metrics: c.metrics,
     response: c.response,
     errorMessage: c.errorMessage,
+    resolvedModel: c.resolvedModel,
   }));
 
   return (
