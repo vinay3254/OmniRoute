@@ -364,3 +364,51 @@ test("#11824: syncing account A's model catalog must not route account B's gemin
   );
   assert.equal(mitmMappings["gemini-3.7-flash-high"], "antigravity/gemini-3.7-flash-tiered");
 });
+
+test("tiered-only Antigravity catalog routes Gemini 3.8 Flash tier ids to the -tiered upstream id", async () => {
+  const db = core.getDbInstance();
+  db.prepare(
+    "INSERT INTO provider_connections (id, provider, auth_type, name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run("tiered-only", "antigravity", "oauth", "Antigravity", 1, "2026-10-12", "2026-10-12");
+
+  // Live :fetchAvailableModels on a tiered-only account lists only the shared
+  // "-tiered" id, never gemini-3.8-flash-{high,medium,low}. Sending a tier id
+  // verbatim upstream would 404, so the display ids must resolve to "-tiered".
+  await importManagedModels({
+    providerId: "antigravity",
+    connectionId: "tiered-only",
+    mode: "sync",
+    fetchedModels: [{ id: "gemini-3.8-flash-tiered", name: "Gemini 3.8 Flash (Tiered)" }],
+  });
+
+  const mitmMappings = await modelsDb.getMitmAlias("antigravity");
+  for (const displayId of [
+    "gemini-3.8-flash",
+    "gemini-3.8-flash-high",
+    "gemini-3.8-flash-medium",
+    "gemini-3.8-flash-low",
+  ]) {
+    assert.equal(mitmMappings[displayId], "antigravity/gemini-3.8-flash-tiered", displayId);
+  }
+});
+
+test("Antigravity catalog that lists a Gemini 3.8 Flash tier id keeps routing it verbatim", async () => {
+  const db = core.getDbInstance();
+  db.prepare(
+    "INSERT INTO provider_connections (id, provider, auth_type, name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run("tier-ids", "antigravity", "oauth", "Antigravity", 1, "2026-10-12", "2026-10-12");
+
+  await importManagedModels({
+    providerId: "antigravity",
+    connectionId: "tier-ids",
+    mode: "sync",
+    fetchedModels: [
+      { id: "gemini-3.8-flash-high", name: "Gemini 3.8 Flash (High)" },
+      { id: "gemini-3.8-flash-tiered", name: "Gemini 3.8 Flash (Tiered)" },
+    ],
+  });
+
+  const mitmMappings = await modelsDb.getMitmAlias("antigravity");
+  assert.equal(mitmMappings["gemini-3.8-flash-high"], "antigravity/gemini-3.8-flash-high");
+  assert.equal(mitmMappings["gemini-3.8-flash"], "antigravity/gemini-3.8-flash-high");
+});

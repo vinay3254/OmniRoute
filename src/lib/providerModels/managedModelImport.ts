@@ -19,6 +19,7 @@ import {
 import { normalizeDiscoveredModels } from "@/lib/providerModels/modelDiscovery";
 import {
   ANTIGRAVITY_MODEL_ALIASES,
+  ANTIGRAVITY_PUBLIC_MODELS,
   ANTIGRAVITY_REVERSE_MODEL_ALIASES,
   isDiscoverableAntigravityModelId,
 } from "@omniroute/open-sse/config/antigravityModelAliases.ts";
@@ -361,6 +362,17 @@ export async function importManagedModels({
     const allAntigravityModels = await getSyncedAvailableModels("antigravity");
     const syncedIds = new Set(allAntigravityModels.map((m) => m.id).filter(Boolean) as string[]);
 
+    // #15659: a tiered-only account lists only the shared `-tiered` id (e.g.
+    // gemini-3.8-flash-tiered), never the -high/-medium/-low tier ids. When the synced
+    // catalog lacks a tier id, route it to the live-catalog id it is served through
+    // instead of letting the static alias send the tier id verbatim upstream (404).
+    const liveCatalogIdsByModel = new Map<string, readonly string[]>();
+    for (const model of ANTIGRAVITY_PUBLIC_MODELS) {
+      if ("liveCatalogIds" in model && Array.isArray(model.liveCatalogIds)) {
+        liveCatalogIdsByModel.set(model.id, model.liveCatalogIds);
+      }
+    }
+
     // Transitive/recursive resolution helper
     const resolveTransitively = (name: string): string => {
       let current = name;
@@ -370,6 +382,10 @@ export async function importManagedModels({
           return current;
         }
         visited.add(current);
+        const liveCatalogId = liveCatalogIdsByModel.get(current)?.find((id) => syncedIds.has(id));
+        if (liveCatalogId) {
+          return liveCatalogId;
+        }
         if (ANTIGRAVITY_MODEL_ALIASES && (ANTIGRAVITY_MODEL_ALIASES as any)[current]) {
           current = (ANTIGRAVITY_MODEL_ALIASES as any)[current];
           continue;
@@ -394,6 +410,9 @@ export async function importManagedModels({
     for (const [k, v] of Object.entries(ANTIGRAVITY_MODEL_ALIASES || {})) {
       candidates.add(k);
       candidates.add(v);
+    }
+    for (const id of liveCatalogIdsByModel.keys()) {
+      candidates.add(id);
     }
     for (const [k, v] of Object.entries(ANTIGRAVITY_REVERSE_MODEL_ALIASES || {})) {
       candidates.add(k);
